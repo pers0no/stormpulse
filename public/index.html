@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StormPulse — Live U.S. Weather Alerts</title>
+    <meta
+      name="description"
+      content="Live map and feed of National Weather Service watches, warnings and advisories across the United States."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script
+      defer
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
+      crossorigin=""
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"
+      integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67"
+      crossorigin=""
+    ></script>
+    <script defer type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#alerts">Skip to alert list</a>
+
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="8" />
+          <path d="M5 17h5l3-7 5 13 3-6h6" />
+        </svg>
+        <div>
+          <h1>StormPulse</h1>
+          <p class="tagline">Live U.S. weather alerts from the National Weather Service</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span id="status" class="status" role="status" aria-live="polite">
+          <span class="status-dot"></span><span class="status-text">Connecting…</span>
+        </span>
+        <label class="select tz-select">
+          <span class="visually-hidden">Show times in</span>
+          <select id="tz"></select>
+        </label>
+        <button id="refresh" class="btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
+          Refresh
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="kpis" aria-label="Summary">
+        <article class="kpi">
+          <h2>Active alerts</h2>
+          <p class="kpi-value" id="kpi-total">—</p>
+          <p class="kpi-note" id="kpi-total-note">&nbsp;</p>
+        </article>
+        <article class="kpi kpi-danger">
+          <h2>Extreme &amp; severe</h2>
+          <p class="kpi-value" id="kpi-severe">—</p>
+          <p class="kpi-note" id="kpi-severe-note">&nbsp;</p>
+        </article>
+        <article class="kpi">
+          <h2>States &amp; territories</h2>
+          <p class="kpi-value" id="kpi-areas">—</p>
+          <p class="kpi-note" id="kpi-areas-note">&nbsp;</p>
+        </article>
+        <article class="kpi">
+          <h2>Issued in the last hour</h2>
+          <p class="kpi-value" id="kpi-new">—</p>
+          <p class="kpi-note" id="kpi-new-note">&nbsp;</p>
+        </article>
+      </section>
+
+      <section class="layout">
+        <article class="card map-card">
+          <header class="card-head">
+            <div>
+              <h2>Alert map</h2>
+              <p class="muted">States are shaded by their most severe alert. Click anywhere for a 7-day forecast.</p>
+            </div>
+            <div class="segmented" role="radiogroup" aria-label="Alert zones">
+              <button type="button" role="radio" data-zone="land" aria-checked="true">Land</button>
+              <button type="button" role="radio" data-zone="marine" aria-checked="false">Marine</button>
+              <button type="button" role="radio" data-zone="all" aria-checked="false">All</button>
+            </div>
+          </header>
+          <div id="map" role="region" aria-label="Map of active alerts"></div>
+          <ul class="legend" aria-label="Severity legend">
+            <li><span class="swatch sev-Extreme"></span>Extreme</li>
+            <li><span class="swatch sev-Severe"></span>Severe</li>
+            <li><span class="swatch sev-Moderate"></span>Moderate</li>
+            <li><span class="swatch sev-Minor"></span>Minor</li>
+            <li><span class="swatch sev-Unknown"></span>Unknown</li>
+            <li class="legend-note"><span class="swatch swatch-outline"></span>Storm-based warning area</li>
+          </ul>
+        </article>
+
+        <div class="side">
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2>Active alerts, last 24 hours</h2>
+                <p class="muted">Peak count per 10 minutes, by severity</p>
+              </div>
+            </header>
+            <div id="history" class="history"></div>
+          </article>
+          <article class="card">
+            <header class="card-head">
+              <div>
+                <h2>Most common alerts</h2>
+                <p class="muted">Click one to filter the list</p>
+              </div>
+            </header>
+            <ol id="top-events" class="bars"></ol>
+          </article>
+        </div>
+      </section>
+
+      <section class="card list-card" id="alerts" aria-labelledby="alerts-title">
+        <header class="card-head">
+          <div>
+            <h2 id="alerts-title">Alerts</h2>
+            <p class="muted" id="alerts-count">&nbsp;</p>
+          </div>
+        </header>
+        <div class="filters">
+          <label class="search">
+            <span class="visually-hidden">Search alerts</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <input id="search" type="search" placeholder="Search by alert type or county…" autocomplete="off" />
+          </label>
+          <div id="severity-chips" class="chips" role="group" aria-label="Filter by severity"></div>
+          <label class="select">
+            <span class="visually-hidden">Filter by state</span>
+            <select id="area"></select>
+          </label>
+          <button id="clear-filters" class="btn btn-ghost" type="button" hidden>Clear filters</button>
+        </div>
+        <div class="table-wrap">
+          <table class="alerts-table">
+            <thead>
+              <tr>
+                <th scope="col">Severity</th>
+                <th scope="col">Alert</th>
+                <th scope="col">Area</th>
+                <th scope="col">Issued</th>
+                <th scope="col">Until</th>
+              </tr>
+            </thead>
+            <tbody id="alert-rows"></tbody>
+          </table>
+          <p id="empty" class="empty" hidden></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Data: <a href="https://www.weather.gov/documentation/services-web-api" rel="noopener">National Weather Service API</a>
+        (public domain). StormPulse is an independent portfolio project, not an official source — for life-safety
+        decisions, follow <a href="https://www.weather.gov" rel="noopener">weather.gov</a> and local authorities.
+      </p>
+    </footer>
+
+    <dialog id="detail" class="detail" aria-labelledby="detail-title">
+      <div class="detail-inner">
+        <header class="detail-head">
+          <div>
+            <span id="detail-severity" class="badge"></span>
+            <h2 id="detail-title"></h2>
+            <p id="detail-sender" class="muted"></p>
+          </div>
+          <button class="icon-btn" type="button" data-close aria-label="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </header>
+        <div id="detail-body" class="detail-body"></div>
+      </div>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>
