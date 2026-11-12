@@ -1,4 +1,4 @@
-# StormPulse — Live U.S. Weather Alerts
+# StormPulse - Live U.S. Weather Alerts
 
 A small Node.js service that watches the **National Weather Service** alerts feed around the clock,
 stores what it sees in SQLite, works out what changed between polls, sends **Slack / Discord**
