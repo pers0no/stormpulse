@@ -7,8 +7,6 @@ notifications for new severe alerts, and serves a live map dashboard.
 Built with **Node.js 22+ (native TypeScript), Fastify, Zod, `node:sqlite` and Leaflet** — three runtime
 dependencies, no build step.
 
-![StormPulse dashboard](docs/screenshot.png)
-
 ## What it does
 
 - **Polls `api.weather.gov`** every 2 minutes (configurable) for all active watches, warnings and advisories.
